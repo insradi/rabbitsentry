@@ -1,24 +1,61 @@
 # RabbitSentry
 
-A modular, read-only infrastructure assessment CLI, starting with AWS.
-
-RabbitSentry is intended to help technicians inspect customer infrastructure and produce reports with supporting evidence, recommended actions, and clear coverage gaps. Continuous server monitoring and other integrations can be added later.
+A local, read-only AWS assessment CLI for technicians. Evaluate twelve focused checks and produce an HTML report with a versioned JSON evidence file. No AI service or hosted backend is required.
 
 ## Project status
 
-This is the initial project repository. The first-release design has been drafted and reviewed; application code has not been implemented yet.
+The first implementation supports Windows and Linux with Python 3.12+. It is tested with synthetic observations and AWS SDK stubs; live customer-account validation is still pending.
 
-## Proposed first release
+## Install and try it
 
-- A Python CLI using existing AWS authentication profiles.
+```console
+python -m venv .venv
+```
+
+Activate the environment (`.venv\Scripts\Activate.ps1` in PowerShell, or `source .venv/bin/activate` on Linux), then:
+
+```console
+python -m pip install .
+rabbitsentry modules list
+rabbitsentry demo --output ./reports/demo
+```
+
+The demo makes no network requests and needs no credentials. Open `report.html` in the new directory printed by the command. Every demo report is labelled as synthetic.
+
+## Assess an authorised AWS account
+
+Use an existing AWS profile or the SDK's standard credential chain. The supplied [read policy](permissions/aws-readonly.json) lists the assessment operations.
+
+```console
+rabbitsentry assess aws --profile customer-readonly --regions eu-west-1,eu-central-1 --expected-account 123456789012 --output ./reports/customer
+rabbitsentry report ./reports/customer/RUN/assessment.json --output ./reports/customer/regenerated.html
+```
+
+Each run creates a new directory containing `assessment.json` and a self-contained `report.html`. Reports remain local. RabbitSentry does not change AWS infrastructure, execute server commands, retrieve secrets, or upload results.
+
+## Initial catalogue
+
 - Four modules covering IAM, network configuration, EC2/EBS, and RDS.
 - Twelve initial checks with separate failure, review, and unknown results.
 - Local HTML and versioned JSON reports.
 - A synthetic demonstration that requires no AWS account.
 - An independent core with optional integrations and no required AI service.
 
-## Design
+Missing permissions cannot produce a passing result. A completed report means selected supported work finished; it is not comprehensive security assurance. Backup freshness, restoration, application security and continuous server monitoring are outside this release.
 
-Read the [AWS assessment CLI design](docs/superpowers/specs/2026-11-08-rabbitsentry-aws-assessment-design.md) for the proposed checks, interfaces, permissions, reporting behaviour, and acceptance criteria.
+## Development
+
+```console
+python -m pip install -r requirements-dev.lock
+python -m pip install --no-deps -e .
+python -m pytest -q
+python -m ruff check .
+python -m ruff format --check --quiet .
+python -m build
+```
+
+Tests block network access. The GitHub workflow runs tests and an installed-package demo on Windows and Linux.
+
+See [usage and permissions](docs/usage.md), [module development](docs/modules.md), and the [approved design](docs/superpowers/specs/2026-11-08-rabbitsentry-aws-assessment-design.md).
 
 Customer credentials, live assessment reports, and downloaded customer data do not belong in this repository.
