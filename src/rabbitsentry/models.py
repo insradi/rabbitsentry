@@ -3,10 +3,18 @@
 import hashlib
 import json
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Literal
 from uuid import uuid4
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    JsonValue,
+    field_validator,
+    model_validator,
+)
 
 from rabbitsentry import __version__
 
@@ -35,7 +43,17 @@ class Evidence(Contract):
     operation: str
     observed_at: AwareDatetime = Field(default_factory=utcnow)
     complete: bool = True
-    data: dict[str, Any] = Field(default_factory=dict)
+    data: dict[str, JsonValue] = Field(default_factory=dict)
+
+    @field_validator("data", mode="before")
+    @classmethod
+    def canonical_json(cls, value):
+        def encode(item):
+            if isinstance(item, datetime) and item.tzinfo is not None:
+                return item.astimezone(UTC).isoformat()
+            raise ValueError("Evidence must contain JSON values or timezone-aware timestamps")
+
+        return json.loads(json.dumps(value, default=encode, allow_nan=False))
 
 
 class InventoryItem(Contract):
@@ -75,6 +93,7 @@ class Coverage(Contract):
     state: Literal["complete", "partial", "failed", "skipped"]
     resource_count: int = Field(default=0, ge=0)
     reason: str = ""
+    subject: str = ""
 
 
 class Policy(Contract):
@@ -100,12 +119,14 @@ class Assessment(Contract):
     results: list[CheckResult] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
     demonstration: bool = False
-    unassessed: list[str] = Field(default_factory=lambda: [
-        "EC2 backup coverage, backup freshness, external backups and restore tests",
-        "Server operating systems, application vulnerabilities and runtime compromise",
-        "Billing, unselected regions and services outside the selected module catalogue",
-        "End-to-end network reachability and organisation-wide account coverage",
-    ])
+    unassessed: list[str] = Field(
+        default_factory=lambda: [
+            "EC2 backup coverage, backup freshness, external backups and restore tests",
+            "Server operating systems, application vulnerabilities and runtime compromise",
+            "Billing, unselected regions and services outside the selected module catalogue",
+            "End-to-end network reachability and organisation-wide account coverage",
+        ]
+    )
 
     @field_validator("schema_version")
     @classmethod
@@ -120,9 +141,11 @@ class Assessment(Contract):
         return value.astimezone(UTC) if value is not None else None
 
     def has_gaps(self) -> bool:
-        return (any(c.state in {"partial", "failed"} for c in self.coverage)
-                or any(r.status == "unknown" for r in self.results)
-                or bool(self.errors))
+        return (
+            any(c.state in {"partial", "failed"} for c in self.coverage)
+            or any(r.status == "unknown" for r in self.results)
+            or bool(self.errors)
+        )
 
     @model_validator(mode="after")
     def consistent_status(self):

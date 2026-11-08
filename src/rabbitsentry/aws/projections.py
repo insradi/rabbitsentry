@@ -10,8 +10,19 @@ def nested(data, field, fields):
 
 
 def instance(data):
-    result = pick(data, ["InstanceId", "InstanceType", "VpcId", "SubnetId", "PrivateIpAddress",
-                         "PublicIpAddress", "LaunchTime", "PlatformDetails"])
+    result = pick(
+        data,
+        [
+            "InstanceId",
+            "InstanceType",
+            "VpcId",
+            "SubnetId",
+            "PrivateIpAddress",
+            "PublicIpAddress",
+            "LaunchTime",
+            "PlatformDetails",
+        ],
+    )
     if "State" in data:
         result["State"] = pick(data["State"], ["Name"])
     result.update(nested(data, "SecurityGroups", ["GroupId"]))
@@ -19,8 +30,10 @@ def instance(data):
 
 
 def volume(data):
-    result = pick(data, ["VolumeId", "Size", "VolumeType", "State", "Encrypted",
-                         "AvailabilityZone", "CreateTime"])
+    result = pick(
+        data,
+        ["VolumeId", "Size", "VolumeType", "State", "Encrypted", "AvailabilityZone", "CreateTime"],
+    )
     result.update(nested(data, "Attachments", ["InstanceId", "State", "Device"]))
     return result
 
@@ -41,12 +54,31 @@ def security_group(data):
 
 
 DB_FIELDS = [
-    "DBInstanceIdentifier", "DBInstanceArn", "DBInstanceClass", "DBInstanceStatus",
-    "DBClusterIdentifier", "DBClusterArn", "Status", "Engine", "EngineVersion", "EngineMode",
-    "PubliclyAccessible", "StorageEncrypted", "StorageEncryptionType", "BackupRetentionPeriod",
-    "DeletionProtection", "MultiAZ", "AvailabilityZone", "GlobalClusterIdentifier",
-    "ReadReplicaSourceDBInstanceIdentifier", "ReadReplicaSourceDBClusterIdentifier",
-    "ClusterScalabilityType", "DBClusterInstanceClass", "ReplicationSourceIdentifier",
+    "DBInstanceIdentifier",
+    "DBInstanceArn",
+    "DBInstanceClass",
+    "DBInstanceStatus",
+    "DBClusterIdentifier",
+    "DBClusterArn",
+    "Status",
+    "Engine",
+    "EngineVersion",
+    "EngineMode",
+    "PubliclyAccessible",
+    "StorageEncrypted",
+    "StorageEncryptionType",
+    "BackupRetentionPeriod",
+    "DeletionProtection",
+    "MultiAZ",
+    "AvailabilityZone",
+    "GlobalClusterIdentifier",
+    "ReadReplicaSourceDBInstanceIdentifier",
+    "ReadReplicaSourceDBClusterIdentifier",
+    "ClusterScalabilityType",
+    "DBClusterInstanceClass",
+    "ReplicationSourceIdentifier",
+    "VPCNetworkingEnabled",
+    "InternetAccessGatewayEnabled",
 ]
 
 

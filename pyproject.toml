@@ -9,7 +9,7 @@ description = "Modular read-only AWS assessments with evidence-based local repor
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-  "boto3>=1.43,<2",
+  "boto3>=1.43.126,<2",
   "typer>=0.16,<1",
   "Jinja2>=3.1.6,<4",
   "pydantic>=2.11,<3",
@@ -26,6 +26,9 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 rabbitsentry = ["templates/*.html"]
+
+[tool.setuptools.data-files]
+"share/rabbitsentry" = ["permissions/aws-readonly.json", "docs/usage.md", "docs/modules.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
