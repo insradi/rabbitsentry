@@ -78,3 +78,40 @@ def test_output_failure_takes_precedence_over_cancellation(monkeypatch, tmp_path
     )
     assert result.exit_code == 1
     assert "private" not in result.output
+
+
+def test_interrupt_during_output_retries_with_cancelled_report(monkeypatch, tmp_path):
+    report = build_demo()
+    original = cli.write_assessment
+    calls = []
+
+    def interrupted_once(assessment, output):
+        calls.append(assessment.run_status)
+        if len(calls) == 1:
+            raise KeyboardInterrupt
+        return original(assessment, output)
+
+    monkeypatch.setattr(cli, "make_provider", lambda profile: object())
+    monkeypatch.setattr(cli, "run_assessment", lambda *args, **kwargs: report)
+    monkeypatch.setattr(cli, "write_assessment", interrupted_once)
+    result = runner.invoke(
+        cli.app, ["assess", "aws", "--regions", "eu-west-1", "--output", str(tmp_path)]
+    )
+    assert result.exit_code == 130
+    assert calls == ["complete", "cancelled"]
+    from rabbitsentry.reporting import load_assessment
+
+    assert load_assessment(next(tmp_path.glob("*/assessment.json"))).run_status == "cancelled"
+
+
+def test_cancelled_save_failure_still_exits_one(monkeypatch, tmp_path):
+    report = build_demo()
+    monkeypatch.setattr(cli, "make_provider", lambda profile: object())
+    monkeypatch.setattr(cli, "run_assessment", lambda *args, **kwargs: report)
+    writer = Mock(side_effect=[KeyboardInterrupt(), PermissionError("private detail")])
+    monkeypatch.setattr(cli, "write_assessment", writer)
+    result = runner.invoke(
+        cli.app, ["assess", "aws", "--regions", "eu-west-1", "--output", str(tmp_path)]
+    )
+    assert result.exit_code == 1 and writer.call_count == 2
+    assert "private detail" not in result.output

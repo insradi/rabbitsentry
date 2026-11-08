@@ -62,6 +62,8 @@ def collect(provider, region):
 
 def topology(data, is_cluster=False):
     engine = data.get("Engine", "")
+    if not isinstance(engine, str):
+        return "unknown", "The database engine field is missing or invalid."
     if (
         engine.startswith("custom-")
         or engine in {"docdb", "neptune"}
@@ -81,6 +83,10 @@ def topology(data, is_cluster=False):
             "excluded",
             "Serverless v1, Express and Limitless topologies are outside the initial catalogue.",
         )
+    if ("ClusterScalabilityType" in data and data["ClusterScalabilityType"] != "standard") or (
+        "EngineMode" in data and data["EngineMode"] != "provisioned"
+    ):
+        return "unknown", "An unfamiliar database topology discriminator was returned."
     if is_cluster:
         if engine in AURORA and data.get("EngineMode") == "provisioned":
             return "aurora", "Regional Aurora cluster"
@@ -146,6 +152,54 @@ def assess_field(ctx, check, resource, data, source):
             else f"The {field} review condition is absent."
         )
     ctx.emit(check, resource, status, reason, source.evidence(data))
+
+
+def verify_aurora_members(ctx, resource, data, source, instances):
+    observed = {
+        item["DBInstanceIdentifier"]
+        for item in instances.items
+        if item.get("DBInstanceIdentifier")
+        and item.get("DBClusterIdentifier") == data["DBClusterIdentifier"]
+    }
+    members = data.get("DBClusterMembers")
+    member_rows = members if isinstance(members, list) else []
+    declared = {
+        item["DBInstanceIdentifier"]
+        for item in member_rows
+        if isinstance(item, dict) and item.get("DBInstanceIdentifier")
+    }
+    malformed = members is not None and (
+        not isinstance(members, list) or len(declared) != len(members)
+    )
+    missing = declared - observed
+    inconsistent = members is not None and bool(observed - declared)
+    if (
+        missing
+        or malformed
+        or inconsistent
+        or (not observed and (members is None or not instances.complete))
+    ):
+        reason = "Aurora membership and instance inventory cannot be reconciled; public accessibility is incomplete."
+        ctx.gap(instances, reason)
+        ctx.emit(
+            "RDS001",
+            resource,
+            "unknown",
+            reason,
+            source.evidence({"DBClusterMembers": members}),
+            instances.evidence(
+                {"observed_member_ids": sorted(observed), "missing_member_ids": sorted(missing)}
+            ),
+        )
+    elif not observed:
+        ctx.emit(
+            "RDS001",
+            resource,
+            "not_applicable",
+            "The completed instance inventory and empty cluster membership contain no Aurora members to assess.",
+            source.evidence({"DBClusterMembers": members}),
+            instances.evidence(),
+        )
 
 
 def evaluate(collections, account_id, region, policy, now):
@@ -217,7 +271,8 @@ def evaluate(collections, account_id, region, policy, now):
                         source.evidence(data),
                     )
                 elif is_cluster and kind == "aurora" and check == "RDS001":
-                    continue  # Public accessibility belongs to each Aurora member instance.
+                    # Results belong to members, but missing declared members must remain visible.
+                    verify_aurora_members(ctx, resource, data, source, instances)
                 elif (
                     not is_cluster
                     and check in {"RDS003", "RDS005"}

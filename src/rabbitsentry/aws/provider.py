@@ -11,7 +11,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 
 from rabbitsentry.models import Evidence, utcnow
 
-from .operations import OPERATIONS
+from .operations import OPERATIONS, PAGINATION
 
 CONFIG = Config(
     connect_timeout=5,
@@ -97,7 +97,8 @@ class AwsProvider:
                     config=CONFIG,
                 )
             client = self._clients[client_key]
-            if client.can_paginate(operation):
+            paginated = client.can_paginate(operation)
+            if paginated:
                 pages = iter(client.get_paginator(operation).paginate(**params))
             else:
                 # A generator defers the request until after the budget check.
@@ -105,6 +106,7 @@ class AwsProvider:
                     yield getattr(client, operation)(**params)
 
                 pages = single_page()
+            seen_tokens = set()
             while True:
                 if self._halted():
                     result.complete, result.error_code = False, self.halt_reason
@@ -112,8 +114,26 @@ class AwsProvider:
                 try:
                     page = next(pages)
                 except StopIteration:
+                    result.complete, result.error_code = False, "InvalidPagination"
                     break
                 result.items.extend(OPERATIONS[(service, operation)].extract(page))
+                if not paginated:
+                    break
+                token_field, flag_field = PAGINATION[(service, operation)]
+                token = page.get(token_field)
+                more = page.get(flag_field) if flag_field else bool(token)
+                invalid = (
+                    (flag_field is not None and type(more) is not bool)
+                    or (more and (not isinstance(token, str) or not token))
+                    or (not more and bool(token))
+                    or (bool(token) and token in seen_tokens)
+                )
+                if invalid:
+                    result.complete, result.error_code = False, "InvalidPagination"
+                    break
+                if not more:
+                    break  # No further request is required, even if this response crossed the budget.
+                seen_tokens.add(token)
         except KeyboardInterrupt:
             self.halt_reason = "Cancelled"
             result.complete, result.error_code = False, "Cancelled"

@@ -4,7 +4,7 @@ from unittest.mock import Mock
 import pytest
 
 from rabbitsentry.aws.provider import Collection
-from rabbitsentry.models import Policy
+from rabbitsentry.models import CheckResult, Policy, ResourceRef
 from rabbitsentry.modules import REGISTRY
 from rabbitsentry.modules.base import ModuleOutput
 from rabbitsentry.runner import AssessmentFailed, InvalidConfiguration, run_assessment
@@ -125,19 +125,37 @@ def test_cancellation_and_remaining_scope_are_preserved():
 
 
 def test_extension_module_requires_no_runner_or_reporting_changes():
+    emitted = CheckResult(
+        check_id="EXAMPLE001",
+        module_id="example.module",
+        resource=ResourceRef(
+            account_id="123456789012",
+            region="eu-west-1",
+            resource_type="scope",
+            identifier="eu-west-1",
+        ),
+        status="review",
+        title="An independent module result",
+        explanation="Synthetic observation",
+        next_step="Review the evidence",
+    )
     custom = replace(
         REGISTRY["aws.network"],
         id="example.module",
         checks={},
         operations=(),
         collect=lambda provider, region: [],
-        evaluate=lambda *args: ModuleOutput(),
+        evaluate=lambda *args: ModuleOutput(results=[emitted]),
     )
     report = run_assessment(
         FakeProvider(), "eu-west-1", registry={custom.id: custom}, policy=Policy(key_age_days=30)
     )
     assert report.selected_modules == {"example.module": "1.0"}
     assert report.run_status == "complete" and report.policy.key_age_days == 30
+    from rabbitsentry.reporting import render_report
+
+    assert "An independent module result" in render_report(report)
+    assert report.results == [emitted]
 
 
 def test_interrupt_while_recording_coverage_still_preserves_report(monkeypatch):

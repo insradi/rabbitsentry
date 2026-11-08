@@ -301,3 +301,33 @@ def test_missing_owner_and_unknown_engines_are_unknown():
         db_instance(Engine="aurora-mysql"),
     ]:
         assert set(statuses(db_output([data])).values()) == {"unknown"}
+
+
+def test_aurora_declared_member_missing_from_inventory_is_unknown():
+    output = db_output([], [cluster(DBClusterMembers=[{"DBInstanceIdentifier": "db-missing"}])])
+    assert statuses(output)["RDS001"] == "unknown"
+    assert any(c.state == "partial" for c in output.coverage)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [{"ClusterScalabilityType": "future-mode"}, {"EngineMode": "future-mode"}, {"Engine": None}],
+)
+def test_unknown_cluster_discriminators_are_not_treated_as_supported(change):
+    output = db_output([db_instance(DBClusterIdentifier="cluster-a")], [cluster(**change)])
+    assert output.results and all(r.status == "unknown" for r in output.results)
+
+
+def test_explicit_standard_cluster_scalability_is_supported():
+    output = db_output(
+        [db_instance(DBClusterIdentifier="cluster-a")], [cluster(ClusterScalabilityType="standard")]
+    )
+    assert not any(r.status == "unknown" for r in output.results)
+
+
+@pytest.mark.parametrize(
+    "membership,expected", [([], "not_applicable"), ([{}], "unknown"), (42, "unknown")]
+)
+def test_empty_or_invalid_aurora_membership_is_explicit(membership, expected):
+    output = db_output([], [cluster(DBClusterMembers=membership)])
+    assert statuses(output)["RDS001"] == expected

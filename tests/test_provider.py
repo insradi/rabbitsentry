@@ -92,7 +92,7 @@ def test_cancellation_preserves_pages():
     provider, _, factory = setup_provider()
 
     def pages(**params):
-        yield {"Volumes": [{"VolumeId": "vol-a"}]}
+        yield {"Volumes": [{"VolumeId": "vol-a"}], "NextToken": "more"}
         raise KeyboardInterrupt
 
     client = Mock()
@@ -121,3 +121,58 @@ def test_access_key_identifiers_are_reduced_to_suffix():
         result = provider.collect("iam", "list_access_keys", "global", UserName="alice")
     assert result.items == [{"KeySuffix": "ABCD", "Status": "Active"}]
     assert "AKIA" not in str(result)
+
+
+@pytest.mark.parametrize(
+    "metadata", [{"IsTruncated": True}, {}, {"IsTruncated": False, "Marker": "contradictory"}]
+)
+def test_inconsistent_iam_pagination_cannot_be_complete(metadata):
+    provider, client, _ = setup_provider("iam")
+    with Stubber(client) as stub:
+        stub.add_response(
+            "list_access_keys",
+            {
+                "AccessKeyMetadata": [{"AccessKeyId": "AKIA123456789012ABCD", "Status": "Active"}],
+                **metadata,
+            },
+            {"UserName": "alice"},
+        )
+        result = provider.collect("iam", "list_access_keys", "global", UserName="alice")
+    assert result.items and not result.complete
+    assert result.error_code == "InvalidPagination"
+
+
+@pytest.mark.parametrize("more", [False, True])
+def test_budget_during_response_only_stops_a_required_next_page(more):
+    now = [0]
+    provider, _, factory = setup_provider(clock=lambda: now[0])
+
+    def pages(**params):
+        now[0] = 601
+        yield {"Volumes": [{"VolumeId": "vol-a"}], **({"NextToken": "more"} if more else {})}
+        if more:
+            pytest.fail("A new request started after the budget")
+
+    client = Mock()
+    client.can_paginate.return_value = True
+    client.get_paginator.return_value.paginate = pages
+    factory.return_value = client
+    result = provider.collect("ec2", "describe_volumes", "eu-west-1")
+    assert result.complete == (not more)
+    assert result.items == [{"VolumeId": "vol-a"}]
+
+
+def test_successful_single_request_remains_complete_after_deadline():
+    now = [0]
+    provider, _, factory = setup_provider(clock=lambda: now[0])
+    client = Mock()
+    client.can_paginate.return_value = False
+
+    def response():
+        now[0] = 601
+        return {"Account": "123456789012", "Arn": "arn:aws:iam::123456789012:root"}
+
+    client.get_caller_identity = response
+    factory.return_value = client
+    result = provider.collect("sts", "get_caller_identity", "eu-west-1")
+    assert result.complete

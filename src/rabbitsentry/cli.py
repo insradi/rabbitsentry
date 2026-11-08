@@ -84,7 +84,13 @@ def assess_aws(
                 f"Account: {account}\nIdentity: {principal}"
             ),
         )
-        directory = write_assessment(report, output)
+        try:
+            directory = write_assessment(report, output)
+        except KeyboardInterrupt:
+            # Identity/scope and observations already exist: make one best-effort cancelled save.
+            report.run_status = "cancelled"
+            report.finish()
+            directory = write_assessment(report, output)
         announce_output(report, directory)
     except InvalidConfiguration as exc:
         typer.echo(str(exc), err=True)

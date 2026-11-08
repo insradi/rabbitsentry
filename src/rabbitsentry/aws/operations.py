@@ -60,6 +60,18 @@ OPERATIONS = {
     ("iam", "list_access_keys"): Operation("iam:ListAccessKeys", "AccessKeyMetadata", p.key),
 }
 
+# Response pagination metadata. IAM must explicitly establish whether more rows exist.
+PAGINATION = {
+    ("ec2", "describe_instances"): ("NextToken", None),
+    ("ec2", "describe_volumes"): ("NextToken", None),
+    ("ec2", "describe_security_groups"): ("NextToken", None),
+    ("rds", "describe_db_instances"): ("Marker", None),
+    ("rds", "describe_db_clusters"): ("Marker", None),
+    ("iam", "list_users"): ("Marker", "IsTruncated"),
+    ("iam", "list_mfa_devices"): ("Marker", "IsTruncated"),
+    ("iam", "list_access_keys"): ("Marker", "IsTruncated"),
+}
+
 
 def read_policy():
     return {
