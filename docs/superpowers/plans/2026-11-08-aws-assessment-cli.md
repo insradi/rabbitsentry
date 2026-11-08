@@ -90,7 +90,7 @@
 
 - [x] Review the complete branch with a fresh reviewer; resolve important issues with reproducing tests.
 - [x] Verify the complete suite, package contents, documentation commands, and clean Git status.
-- [ ] Push the feature branch to the existing private GitHub repository. Keep `main` unchanged while the implementation is reviewed.
+- [x] Push the feature branch to the existing private GitHub repository. Keep `main` unchanged while the implementation is reviewed.
 - [x] If the offered staging LXC is available, run installation and synthetic demo there; record the actual result separately from Windows verification.
 
 ## Execution notes
