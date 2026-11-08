@@ -2,6 +2,8 @@
 
 Requires Python 3.12+. Install from this checkout with `python -m pip install .` in an isolated environment. Linux may require the distribution's `python3-venv` package. On Windows use an approved Python interpreter; installation does not require weakening application-control policies.
 
+Every command also works as `python -m rabbitsentry ...`. This is useful on managed Windows machines where the generated console launcher is restricted. The wheel installs the read policy and usage/module documents under the environment's `share/rabbitsentry/` directory.
+
 ## Authentication and permissions
 
 Use an existing named profile, temporary credentials, configured assumed role, or an already logged-in IAM Identity Center session. RabbitSentry uses [Boto3's credential providers](https://docs.aws.amazon.com/boto3/latest/guide/credentials.html). It never accepts access keys as command arguments or creates a credential store.

@@ -45,50 +45,54 @@
 
 **Interfaces:** `ResourceRef`, `InventoryItem`, `Evidence`, `CheckResult`, `Coverage`, `Assessment`, `Policy`; all Pydantic models. `CheckResult.fingerprint` derives from provider/account/scope/type/resource/check. `Assessment.finish()` derives complete/partial while preserving cancelled. `Assessment.model_validate_json()` validates offline input.
 
-- [ ] Write `tests/test_models.py`: fingerprints stay stable across run IDs but differ across subjects/checks; schema major 2 is rejected; unknown results or failed coverage make a finished run partial; timestamps require timezones; inconsistent complete reports are rejected on import.
-- [ ] Run `.venv/Scripts/python -m pytest tests/test_models.py -q`; expect missing implementation.
-- [ ] Implement models and package metadata; default schema `1.0`, key age 90 days, version `0.1.0`.
-- [ ] Rerun model tests, then full suite; expect pass. Commit this deliverable.
+- [x] Write `tests/test_models.py`: fingerprints stay stable across run IDs but differ across subjects/checks; schema major 2 is rejected; unknown results or failed coverage make a finished run partial; timestamps require timezones; inconsistent complete reports are rejected on import.
+- [x] Attempt initial model tests; the first run exposed a blocked dependency before reaching application code. The approved Python 3.12 environment resolved it; see execution notes.
+- [x] Implement models and package metadata; default schema `1.0`, key age 90 days, version `0.1.0`.
+- [x] Rerun model tests, then full suite; expect pass. Commit this deliverable.
 
 ## Task 2: AWS read gateway and projections
 
 **Interfaces:** `Collection` holds operation, region, selector, observed time, projected items, completion/error. `AwsProvider.collect(service, operation, region, **params) -> Collection` caches each exact request. `AwsProvider.history` preserves collections; `halt_reason` prevents further network calls. `OPERATIONS` is the assessment allowlist and IAM-action mapping.
 
-- [ ] Write `tests/test_provider.py`: SDK-stubbed pagination, failure after a successful page, read allowlist before dispatch, credential-expiry halt, budget halt, cancellation preservation, and projections that discard credentials/tags/response metadata.
-- [ ] Run provider tests; expect missing implementation.
-- [ ] Implement sequential SDK pagination with bounded retry/timeouts, projected response extraction, sanitised error codes, cache, and cancellation. `NoSuchEntity` remains evidence for evaluator interpretation.
-- [ ] Run provider tests and full suite; expect pass. Generate the matching read policy and commit.
+- [x] Write `tests/test_provider.py`: SDK-stubbed pagination, failure after a successful page, read allowlist before dispatch, credential-expiry halt, budget halt, cancellation preservation, and projections that discard credentials/tags/response metadata.
+- [x] Run provider tests; expect missing implementation.
+- [x] Implement sequential SDK pagination with bounded retry/timeouts, projected response extraction, sanitised error codes, cache, and cancellation. `NoSuchEntity` remains evidence for evaluator interpretation.
+- [x] Run provider tests and full suite; expect pass. Generate the matching read policy and commit.
 
 ## Task 3: Twelve native checks and module contract
 
 **Interfaces:** `ModuleSpec` declares ID/version/scope/operations/check IDs/collector/evaluator. `collect(provider, region) -> list[Collection]`; `evaluate(collections, account_id, region, policy, now) -> ModuleOutput` returns inventory/results. `REGISTRY` is the explicit bundled registry. Evaluators make no network calls.
 
-- [ ] Write `tests/test_checks.py` with literal positive, negative, missing-field, no-resource, and partial-page cases. Include IPv6/all protocols/ranges, detached volumes, root password absence, corroborated/ambiguous missing login profiles, multiple old keys, standalone and cluster-owned RDS checks, exclusions, and encryption-type precedence.
-- [ ] Run check tests; expect missing implementation.
-- [ ] Implement the four modules against the shared contracts. Aggregate network matches per group and old keys per user. Mark known exclusions as skipped; unknown variants as unknown. Inventory only projected fields.
-- [ ] Run check tests and full suite; expect pass. Commit modules.
+- [x] Write `tests/test_checks.py` with literal positive, negative, missing-field, no-resource, and partial-page cases. Include IPv6/all protocols/ranges, detached volumes, root password absence, corroborated/ambiguous missing login profiles, multiple old keys, standalone and cluster-owned RDS checks, exclusions, and encryption-type precedence.
+- [x] Run check tests; expect missing implementation.
+- [x] Implement the four modules against the shared contracts. Aggregate network matches per group and old keys per user. Mark known exclusions as skipped; unknown variants as unknown. Inventory only projected fields.
+- [x] Run check tests and full suite; expect pass. Commit modules.
 
 ## Task 4: Assessment orchestration
 
 **Interfaces:** `run_assessment(provider, regions, modules, expected_account, policy, on_identity=None) -> Assessment`; `InvalidConfiguration` and `AssessmentFailed` distinguish invocation and bootstrap errors. Selected module sets are validated before AWS collection. Explicit scope and SDK-supported regions are validated before identity collection.
 
-- [ ] Write `tests/test_runner.py`: account mismatch aborts inventory, unsupported partition, duplicate/invalid regions and modules, all-enabled discovery, IAM once across regions, selected module isolation, all operations denied, expired credentials, cancellation, missing fields, excluded scope, and registration of an independent test module.
-- [ ] Run runner tests; expect missing implementation.
-- [ ] Implement identity/scope bootstrap and module loops. Record every collection, skipped module, and unknown result; preserve successful evidence when later scopes fail.
-- [ ] Run runner tests and full suite; expect pass. Commit orchestration.
+- [x] Write `tests/test_runner.py`: account mismatch aborts inventory, unsupported partition, duplicate/invalid regions and modules, all-enabled discovery, IAM once across regions, selected module isolation, all operations denied, expired credentials, cancellation, missing fields, excluded scope, and registration of an independent test module.
+- [x] Run runner tests; expect missing implementation.
+- [x] Implement identity/scope bootstrap and module loops. Record every collection, skipped module, and unknown result; preserve successful evidence when later scopes fail.
+- [x] Run runner tests and full suite; expect pass. Commit orchestration.
 
 ## Task 5: Commands, reports, demo, and distribution
 
 **Interfaces:** `write_assessment(assessment, output_root=None) -> Path` creates a unique directory and both files. `render_report(assessment) -> str` escapes text. `write_html(assessment, path)` refuses overwrite. `build_demo() -> Assessment` uses synthetic collections and real evaluators. Typer exposes the design's four command families.
 
-- [ ] Write `tests/test_reporting.py` and `tests/test_cli.py`: complete/partial/cancelled labels, hostile names, unsupported import, no overwrite, no credential lookup in demo/report/help, all CLI exit paths, and all twelve checks represented in the demo.
-- [ ] Run these tests; expect missing implementation.
-- [ ] Implement self-contained HTML/JSON output, synthetic demo, command help and validation, local permission file, installation/use/module documentation, and Windows/Linux CI. Add an SDK capability check so required RDS fields are available in the installed dependency range.
-- [ ] Run full suite, Ruff, package build, installed CLI help/demo, and offline regeneration. Inspect rendered demo HTML. Commit the working CLI and lock dependency versions.
+- [x] Write `tests/test_reporting.py` and `tests/test_cli.py`: complete/partial/cancelled labels, hostile names, unsupported import, no overwrite, no credential lookup in demo/report/help, all CLI exit paths, and all twelve checks represented in the demo.
+- [x] Run these tests; expect missing implementation.
+- [x] Implement self-contained HTML/JSON output, synthetic demo, command help and validation, local permission file, installation/use/module documentation, and Windows/Linux CI. Add an SDK capability check so required RDS fields are available in the installed dependency range.
+- [x] Run full suite, Ruff, package build, installed CLI help/demo, and offline regeneration. Inspect rendered demo HTML. Commit the working CLI and lock dependency versions.
 
 ## Finish
 
-- [ ] Review the complete branch with a fresh reviewer; resolve important issues with reproducing tests.
-- [ ] Verify the complete suite, package contents, documentation commands, and clean Git status.
+- [x] Review the complete branch with a fresh reviewer; resolve important issues with reproducing tests.
+- [x] Verify the complete suite, package contents, documentation commands, and clean Git status.
 - [ ] Push the feature branch to the existing private GitHub repository. Keep `main` unchanged while the implementation is reviewed.
-- [ ] If the offered staging LXC is available, run installation and synthetic demo there; record the actual result separately from Windows verification.
+- [x] If the offered staging LXC is available, run installation and synthetic demo there; record the actual result separately from Windows verification.
+
+## Execution notes
+
+Implemented and verified on Windows and Linux with 93 offline tests. The initial model red run failed during dependency import; model implementation preceded a valid application-red run. Later tasks and review fixes followed observed red/green cycles. Tasks 3–5 were committed together as a working CLI. See `docs/verification.md` for actual validation and its limits. Integration follows the authorised GitHub project setup: push a feature branch and draft pull request; preserve main and the local checkout.
