@@ -2,7 +2,7 @@
 
 Date: 8 November 2026
 
-Status: Draft for review before implementation
+Status: Approved for implementation by the user on 8 November 2026
 
 ## Purpose and agreed direction
 
