@@ -1,0 +1,29 @@
+# Python environments and build output
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Test and analysis output
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Local assessment output and credentials
+reports/
+.aws/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Local development scratch
+.superpowers/
+.DS_Store
+Thumbs.db
